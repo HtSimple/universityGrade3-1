@@ -1,228 +1,82 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Toy Semantic Code Search — 简化版</title>
-<style>
-  :root{
-    --bg:#f6f9ff;
-    --card:#ffffff;
-    --accent:#2b6cb0;
-    --muted:#6b7280;
-  }
-  html,body{
-    height:100%;
-    margin:0;
-    font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
-  }
-  body{
-    background:linear-gradient(180deg,#e9f2ff 0%,var(--bg) 100%);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:flex-start;
-    padding:40px;
-  }
-
-  .app {
-    width:800px;max-width:95vw;
-    background:var(--card);
-    border-radius:14px;
-    box-shadow:0 6px 20px rgba(20,30,60,0.1);
-    border:1px solid rgba(16,24,40,0.05);
-    padding:24px;
-  }
-
-  h1 {
-    text-align:center;
-    margin:0 0 16px 0;
-    color:var(--accent);
-    font-size:22px;
-  }
-
-  .search-area{
-    display:flex;
-    gap:8px;
-    margin-bottom:20px;
-    flex-wrap:wrap;
-  }
-  .search-area input{
-    flex:1;
-    padding:12px;
-    border-radius:8px;
-    border:1px solid rgba(12,24,64,0.1);
-    font-size:15px;
-  }
-  .search-area select{
-    padding:12px;
-    border-radius:8px;
-    border:1px solid rgba(12,24,64,0.1);
-    font-size:15px;
-    background:white;
-  }
-  .search-area button{
-    padding:12px 20px;
-    border:none;
-    border-radius:8px;
-    background:linear-gradient(180deg,var(--accent),#1f4f8a);
-    color:#fff;
-    cursor:pointer;
-    font-weight:600;
-  }
-
-  .results{
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-  }
-
-  .panel{
-    background:#fff;
-    border-radius:10px;
-    padding:14px;
-    border:1px solid rgba(12,24,64,0.05);
-  }
-
-  .panel h3{
-    margin:0 0 10px 0;
-    color:var(--accent);
-    font-size:16px;
-  }
-
-  .code-block{
-    background:#0b1220;
-    color:#e6eef8;
-    padding:10px;
-    border-radius:8px;
-    font-family:Consolas,monospace;
-    font-size:13px;
-    white-space:pre-wrap;
-    overflow:auto;
-  }
-
-  .resource-list{
-    list-style:none;
-    padding:0;
-    margin:0;
-  }
-  .resource-item{
-    background:#f8fbff;
-    border:1px solid rgba(12,24,64,0.05);
-    border-radius:8px;
-    padding:8px;
-    margin-bottom:8px;
-    font-size:14px;
-  }
-  .resource-item a{
-    color:var(--accent);
-    text-decoration:none;
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>豆包 API 问答示例</title>
+  <style>
+    body { margin:0; font-family:sans-serif; background:#f5f8fa; padding:20px; }
+    .container { max-width:800px; margin:0 auto; background:#fff; padding:24px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,0.1); }
+    .search-area { display:flex; gap:8px; margin-bottom:20px; }
+    .search-area input { flex:1; padding:10px; border:1px solid #ccc; border-radius:4px; }
+    .search-area select { width:150px; padding:10px; border:1px solid #ccc; border-radius:4px; }
+    .search-area button { padding:10px 16px; border:none; background:#007acc; color:#fff; border-radius:4px; cursor:pointer; }
+    .panel { margin-top:20px; }
+    .summary { background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; white-space:pre-wrap; }
+  </style>
 </head>
 <body>
-  <div class="app">
-    <h1>Toy Semantic Code Search</h1>
+  <div class="container">
+    <h1>豆包 AI 问答示例</h1>
     <div class="search-area">
-      <input id="userInput" placeholder="输入你的编程需求（自然语言）...">
+      <input id="userInput" placeholder="请输入要解决的问题，例如：用Python实现快速排序">
       <select id="langSelect">
-        <option value="auto">自动识别语言</option>
         <option value="python">Python</option>
         <option value="java">Java</option>
         <option value="cpp">C++</option>
         <option value="javascript">JavaScript</option>
+        <option value="go">Go</option>
       </select>
-      <button id="searchBtn">搜索</button>
+      <button id="searchBtn">生成答案</button>
     </div>
-
-    <div id="results" class="results">
-      <div style="color:var(--muted)">请输入需求后点击“搜索”，并选择语言。<br>需求示例："读取 CSV" 或 "解析 XML"。</div>
-    </div>
+    <div id="results"><div style="color:#888">请输入问题后点击“生成答案”</div></div>
   </div>
 
-<script>
-const MOCK = {
-  python: [
-    {
-      title: "用 Pandas 读取 CSV 文件",
-      snippet: `import pandas as pd
+ <script>
+  const DOUBAO_API = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
 
-df = pd.read_csv('data.csv')
-print(df.head())
-print(df['amount'].sum())`
+  document.getElementById("searchBtn").addEventListener("click", async () => {
+    const problem = document.getElementById("userInput").value.trim();
+    const lang = document.getElementById("langSelect").value;
+    const resultsDiv = document.getElementById("results");
+
+    if (!problem) return alert("请输入问题描述");
+
+    resultsDiv.innerHTML = `<div style="color:#555">思考中，请稍候...</div>`;
+
+    try {
+      const response = await fetch(DOUBAO_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer 12d2ef09-41ae-4668-8cdf-ee01e99ed055" // ⚠️换成你自己的 Token
+        },
+        body: JSON.stringify({
+          model: "doubao-seed-1-6-251015",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: `请使用 ${lang} 语言解决以下问题：${problem}，直接给出具体代码。` }
+              ]
+            }
+          ]
+        })
+      });
+
+      const data = await response.json();
+      console.log(data); // ✅ 调试用，打印完整响应
+
+      const text = data.choices?.[0]?.message?.content || "（未获取到回答）";
+
+      resultsDiv.innerHTML = `
+        <div class="panel">
+          <h3>豆包回答</h3>
+          <div class="summary">${text}</div>
+        </div>
+      `;
+    } catch (err) {
+      resultsDiv.innerHTML = `<div style="color:red">调用失败：${err.message}</div>`;
     }
-  ],
-  java: [
-    {
-      title: "用 Jackson 解析 XML",
-      snippet: `import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-
-public class XmlExample {
-  public static void main(String[] args) throws Exception {
-    XmlMapper xmlMapper = new XmlMapper();
-    String xml = "<User><name>Tom</name><age>20</age></User>";
-    User user = xmlMapper.readValue(xml, User.class);
-    System.out.println(user.getName());
-  }
-}`
-    }
-  ],
-  cpp: [
-    {
-      title: "C++ 文件读取示例",
-      snippet: `#include <fstream>
-#include <iostream>
-#include <string>
-using namespace std;
-
-int main(){
-  ifstream file("data.txt");
-  string line;
-  while(getline(file, line)){
-    cout << line << endl;
-  }
-}`
-    }
-  ]
-};
-
-document.getElementById('searchBtn').addEventListener('click', ()=>{
-  const q = document.getElementById('userInput').value.trim();
-  const lang = document.getElementById('langSelect').value;
-  const res = document.getElementById('results');
-  if(!q){
-    alert('请输入搜索内容');
-    return;
-  }
-  res.innerHTML = `<div style="color:var(--muted)">正在搜索「${q}」（语言：${lang}）...</div>`;
-  setTimeout(()=>{
-    renderMockResults(lang, q);
-  },600);
-});
-
-function renderMockResults(lang, q){
-  const res = document.getElementById('results');
-  const list = MOCK[lang] || MOCK.python;
-  let html = `
-  <div class="panel">
-    <h3>代码示例（${lang}）</h3>
-    ${list.map(ex=>`
-      <div style="margin-bottom:12px">
-        <strong>${ex.title}</strong>
-        <div class="code-block">${ex.snippet}</div>
-      </div>
-    `).join('')}
-  </div>
-
-  <div class="panel">
-    <h3>参考资源</h3>
-    <ul class="resource-list">
-      <li class="resource-item"><a href="https://stackoverflow.com" target="_blank">StackOverflow 搜索结果</a></li>
-      <li class="resource-item"><a href="https://github.com" target="_blank">GitHub 代码示例</a></li>
-    </ul>
-  </div>`;
-  res.innerHTML = html;
-}
+  });
 </script>
-</body>
-</html>
